@@ -10,12 +10,11 @@ from typing import List
 
 # Dictionary to hold the regex patterns
 patterns = {
-    'extract': lambda fields, separator:
-    r'(?P<field>{})=[^{}]*'.format('|'.join(fields), separator),
-    'replace': lambda redaction: r'\g<field>={}'.format(redaction),
+    'extract': lambda x, y: r'(?P<field>{})=[^{}]*'.format('|'.join(x), y),
+    'replace': lambda x: r'\g<field>={}'.format(x),
 }
-SENSITIVE_FIELDS = ("name", "email", "phone", "ssn", "password")
-
+PII_FIELDS = ("name", "email", "phone", "ssn", "password")
+}
 
 def filter_datum(
         fields: List[str], redaction: str, message: str, separator: str,
@@ -58,11 +57,11 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
 def main():
     """Fetches user records from the database and logs them to console.
     """
-    fields = "name,email,phone,ssn,password,ip,last_login,user_agent"
+fields = "name,email,phone,ssn,password,ip,last_login,user_agent"
     columns = fields.split(',')
     query = "SELECT {} FROM users;".format(fields)
-    user_data_logger = create_logger()
-    connection = connect_to_db()
+    info_logger = get_logger()
+    connection = get_db()
     with connection.cursor() as cursor:
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -71,9 +70,10 @@ def main():
                 lambda x: '{}={}'.format(x[0], x[1]),
                 zip(columns, row),
             )
-            log_msg = '{};'.format('; '.join(list(record)))
-            log_record = logging.LogRecord("user_data_logger", logging.INFO, None, None, log_msg, None, None)
-            user_data_logger.handle(log_record)
+            msg = '{};'.format('; '.join(list(record)))
+            args = ("user_data", logging.INFO, None, None, msg, None, None)
+            log_record = logging.LogRecord(*args)
+            info_logger.handle(log_record)
 
 
 class RedactingFormatter(logging.Formatter):
