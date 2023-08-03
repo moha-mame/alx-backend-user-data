@@ -9,12 +9,13 @@ from typing import List
 
 
 # Dictionary to hold the regex patterns
+
 patterns = {
     'extract': lambda x, y: r'(?P<field>{})=[^{}]*'.format('|'.join(x), y),
     'replace': lambda x: r'\g<field>={}'.format(x),
 }
 PII_FIELDS = ("name", "email", "phone", "ssn", "password")
-}
+
 
 def filter_datum(
         fields: List[str], redaction: str, message: str, separator: str,
@@ -28,9 +29,9 @@ def filter_datum(
 def get_logger() -> logging.Logger:
     """Creates a logger to log user data to console.
     """
-    logger = logging.getLogger("user_data_logger")
+    logger = logging.getLogger("user_data")
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(RedactingFormatter(SENSITIVE_FIELDS))
+    stream_handler.setFormatter(RedactingFormatter(PII_FIELDS))
     logger.setLevel(logging.INFO)
     logger.propagate = False
     logger.addHandler(stream_handler)
@@ -38,12 +39,12 @@ def get_logger() -> logging.Logger:
 
 
 def get_db() -> mysql.connector.connection.MySQLConnection:
-    """Creates a connection to the database.
+    """Creates a connector to a database.
     """
-    db_host = os.getenv("DB_HOST", "localhost")
-    db_name = os.getenv("DB_NAME", "")
-    db_user = os.getenv("DB_USERNAME", "root")
-    db_pwd = os.getenv("DB_PASSWORD", "")
+    db_host = os.getenv("PERSONAL_DATA_DB_HOST", "localhost")
+    db_name = os.getenv("PERSONAL_DATA_DB_NAME", "")
+    db_user = os.getenv("PERSONAL_DATA_DB_USERNAME", "root")
+    db_pwd = os.getenv("PERSONAL_DATA_DB_PASSWORD", "")
     connection = mysql.connector.connect(
         host=db_host,
         port=3306,
@@ -57,7 +58,7 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
 def main():
     """Fetches user records from the database and logs them to console.
     """
-fields = "name,email,phone,ssn,password,ip,last_login,user_agent"
+    fields = "name,email,phone,ssn,password,ip,last_login,user_agent"
     columns = fields.split(',')
     query = "SELECT {} FROM users;".format(fields)
     info_logger = get_logger()
@@ -81,7 +82,8 @@ class RedactingFormatter(logging.Formatter):
     """
 
     REDACTION = "***"
-    FORMAT = "[MY_APP] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
+    FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
+    FORMAT_FIELDS = ('name', 'levelname', 'asctime', 'message')
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
@@ -89,11 +91,11 @@ class RedactingFormatter(logging.Formatter):
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """Formats a log record.
+        """formats a LogRecord.
         """
         msg = super(RedactingFormatter, self).format(record)
-        redacted_msg = redact_data(self.fields, self.REDACTION, msg, self.SEPARATOR)
-        return redacted_msg
+        txt = filter_datum(self.fields, self.REDACTION, msg, self.SEPARATOR)
+        return txt
 
 
 if __name__ == "__main__":
