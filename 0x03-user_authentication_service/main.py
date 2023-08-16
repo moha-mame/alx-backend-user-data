@@ -2,9 +2,6 @@
 """
 Main file
 """
-from user import User
+from auth import _hash_password
 
-print(User.__tablename__)
-
-for column in User.__table__.columns:
-    print("{}: {}".format(column, column.type))
+print(_hash_password("Hello Holberton"))
